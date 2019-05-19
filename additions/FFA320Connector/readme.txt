@@ -1,0 +1,1 @@
+Please put this custom.cfg into FFA320Connector folder.
