@@ -2,9 +2,9 @@
 Data reference data defines
 """
 class DataReference():
-    def __init__(self):
-        self.__value = 0.0 # value of dataref is float
-        self.__name = "" # name will be a string
+    def __init__(self, value, name):
+        self.__value = value # value of dataref is float
+        self.__name = name # name will be a string
 
 
     """
