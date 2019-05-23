@@ -1,0 +1,28 @@
+{
+    "editor.formatOnPaste": true,
+    "deploy": {
+        "packages": [
+            {
+                "name": "Development test files on pi",
+                "files": [
+                    "**/*.py"
+                ]
+            }
+        ],
+        "targets": [
+            {
+                "type": "sftp",
+                "name": "JamesPi",
+                "description": "My raspberry",
+                "dir": "/home/pi/homecockpit-develop",
+                "host": "jamespi",
+                "port": 22,
+                "user": "pi",
+                "privateKey": "E:/Documents/SSH-Key/private-20190401-desktop.ppk",
+                "modes": {
+                    "(\\.py)$": 777
+                }
+            }
+        ]
+    }
+}
