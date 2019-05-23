@@ -1,13 +1,5 @@
-import socket
+"""
+Generic defines of message length
+"""
+DATA_REF_MSG_LENGTH_BYTES = 509
 
-UDP_IP = ""
-
-UDP_PORT = 49000
-
-sock = socket.socket(socket.AF_INET,  # Internet
-                    socket.SOCK_DGRAM)  # UDP
-sock.bind((UDP_IP, UDP_PORT))
-
-class DataHandler():
-    data, addr = sock.recvfrom(1024)  # buffer size is 1024 bytes
-    print("received message:", data.decode(), "addr", addr)
