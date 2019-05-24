@@ -1,33 +1,30 @@
 #!/usr/bin/env python3
 
-from network import datatypes, datahandler
-import socket
-import time
-
-# TODO: ip and port will be argument
-IP = ""
-PORT = 49000
+import argparse
+from hardware import hardwarehandler
+from network import datahandler
+import queue
 
 
-def main():
+def main(clientPort, hostPort):
     print("Home cockpit connector on Raspberry Pi")
-    dh = datahandler.DataHandler()
-    com1Stby = datatypes.DataReference(0, 0)
-
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind((IP, PORT))
-
-    while True:
-        dh.Data, addr = sock.recvfrom(1024)
-
-        com1Stby = dh.Decode(com1Stby)
-
-        print(com1Stby.Value, ", name:", com1Stby.Name)
-
-        #time.sleep(1)
+    dataHandlerQueue = queue.Queue()
+    dataHandlerThread = datahandler.DataHandler(dataHandlerQueue, "socket", clientPort, hostPort)
+    radioPanelThread = hardwarehandler.RadioPanel(dataHandlerQueue, "radio")
+    
+    dataHandlerThread.start()
+    radioPanelThread.start()
 
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("clientPort",
+        help="The port you set in X-plane for sending data reference.",
+        type=int)
+    parser.add_argument("hostPort",
+        help="The port which X-plane is listening to.",
+        type=int)
+
+    args = parser.parse_args()
+    main(args.clientPort, args.hostPort)
