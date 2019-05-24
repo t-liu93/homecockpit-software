@@ -1,4 +1,5 @@
 {
+    "editor.tabSize": 4,
     "editor.formatOnPaste": true,
     "deploy": {
         "packages": [
@@ -24,5 +25,6 @@
                 }
             }
         ]
-    }
+    },
+    "python.pythonPath": "C:\\Users\\liuti\\AppData\\Local\\Programs\\Python\\Python37-32\\python.exe"
 }
