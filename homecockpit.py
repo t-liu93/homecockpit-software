@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import collections
 from hardware import hardwarehandler
 from network import datahandler
 import queue
@@ -8,7 +9,8 @@ import queue
 
 def main(clientPort, hostPort):
     print("Home cockpit connector on Raspberry Pi")
-    dataHandlerQueue = queue.Queue()
+    DataHandlerQueue = collections.namedtuple('datahandlerqueue', 'networktohardware hardwaretonetwork')
+    dataHandlerQueue = DataHandlerQueue(queue.Queue(), queue.Queue())
     dataHandlerThread = datahandler.DataHandler(dataHandlerQueue, "socket", clientPort, hostPort)
     radioPanelThread = hardwarehandler.RadioPanel(dataHandlerQueue, "radio")
     

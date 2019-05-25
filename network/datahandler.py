@@ -63,19 +63,19 @@ class DataHandler(threading.Thread):
         if refName == "sim/cockpit/radios/com1_freq_hz":
             self.__com1Actv.Value = msg[2]
             self.__com1Actv.Name = self.__GetDataType(refName)
-            self.__radioQueue.put(self.__com1Actv)
+            self.__PutInQueue(self.__com1Actv)
         elif refName == "sim/cockpit/radios/com1_stdby_freq_hz":
             self.__com1Stby.Value = msg[2]
             self.__com1Stby.Name = self.__GetDataType(refName)
-            self.__radioQueue.put(self.__com1Stby)
+            self.__PutInQueue(self.__com1Stby)
         elif refName == "sim/cockpit/radios/com2_freq_hz":
             self.__com2Actv.Value = msg[2]
             self.__com2Actv.Name = self.__GetDataType(refName)
-            self.__radioQueue.put(self.__com2Actv)
+            self.__PutInQueue(self.__com2Actv)
         elif refName == "sim/cockpit/radios/com2_stdby_freq_hz":
             self.__com2Stby.Value = msg[2]
             self.__com2Stby.Name = self.__GetDataType(refName)
-            self.__radioQueue.put(self.__com2Stby)
+            self.__PutInQueue(self.__com2Stby)
     
     def __RemoveZeros(self, dataRemaining):
         i = 0
@@ -92,3 +92,6 @@ class DataHandler(threading.Thread):
             "sim/cockpit/radios/com2_stdby_freq_hz" : "com2stby"
         }[typeStr]
 
+    def __PutInQueue(self, newValue):
+        if not self.__radioQueue.networktohardware.full():
+            self.__radioQueue.networktohardware.put(newValue)
