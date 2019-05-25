@@ -36,6 +36,9 @@ class DataHandler(threading.Thread):
         while True:
             self.__data, self.__address = self.__sock.recvfrom(509) # At this moment 509 is enough for data ref
             self.Decode()
+            while not self.__radioQueue.hardwaretonetwork.empty():
+                self.__sock.sendto(self.Encode(self.__radioQueue.hardwaretonetwork.get()),
+                (self.__address[0], self.__sendingPort))
 
 
     @property
@@ -76,6 +79,29 @@ class DataHandler(threading.Thread):
             self.__com2Stby.Value = msg[2]
             self.__com2Stby.Name = self.__GetDataType(refName)
             self.__PutInQueue(self.__com2Stby)
+
+    def Encode(self, data):
+        if data[0] == "com1actv":
+            header = "DREF".encode()
+            padding = "+".encode()
+            value = data[1] * 100
+            refName = "sim/cockpit/radios/com1_freq_hz"
+            last = refName + ("\0" * (500 - len(refName)))
+            b = struct.pack("=4scf500s", header, padding, value, last.encode())
+        elif data[0] == "com1stby":
+            header = "DREF".encode()
+            padding = "+".encode()
+            value = data[1] * 100
+            print(value)
+            refName = "sim/cockpit/radios/com1_stdby_freq_hz"
+            last = refName.encode()
+            last = refName + ("\0" * (500 - len(refName)))
+            b = struct.pack("=4scf500s", header, padding,
+                            value, last.encode())
+
+        return b
+            
+            
     
     def __RemoveZeros(self, dataRemaining):
         i = 0

@@ -11,9 +11,9 @@ ENCODER_FINE_CLK_GPIO   = 20
 ENCODER_FINE_DT_GPIO    = 21
 
 BOUNCE_TIME_BUTTON      = 200
-BOUNCE_TIME_ENCODER     = 100
+BOUNCE_TIME_ENCODER     = 150
 
-LCD_REFRESH_INTERVAL    = 0.5
+LCD_REFRESH_INTERVAL    = 0.2
 
 """
 Class to control the radio panel
@@ -28,6 +28,8 @@ class RadioPanel(threading.Thread):
         self.__textArray = list()
         self.__textArray.append("")
         self.__textArray.append("")
+
+        self.__toRefresh = True
 
         self.__lastRefreshTime = time.time()
 
@@ -63,13 +65,13 @@ class RadioPanel(threading.Thread):
         Anti-clockwise: clk -> dt
         """
         GPIO.add_event_detect(ENCODER_COARSE_CLK_GPIO, GPIO.FALLING,
-                              callback=self.__CoarseUp, bouncetime=BOUNCE_TIME_ENCODER)
-        GPIO.add_event_detect(ENCODER_COARSE_DT_GPIO, GPIO.FALLING,
-                              callback=self.__CoarseDown, bouncetime=BOUNCE_TIME_ENCODER)
+                              callback=self.__CoarseChange, bouncetime=BOUNCE_TIME_ENCODER)
+        # GPIO.add_event_detect(ENCODER_COARSE_DT_GPIO, GPIO.FALLING,
+                            #   callback=self.__CoarseDown, bouncetime=BOUNCE_TIME_ENCODER)
         GPIO.add_event_detect(ENCODER_FINE_CLK_GPIO, GPIO.FALLING,
-                              callback=self.__FineUp, bouncetime=BOUNCE_TIME_ENCODER)
-        GPIO.add_event_detect(ENCODER_FINE_DT_GPIO, GPIO.FALLING,
-                              callback=self.__FineDown, bouncetime=BOUNCE_TIME_ENCODER)
+                              callback=self.__FineChange, bouncetime=BOUNCE_TIME_ENCODER)
+        # GPIO.add_event_detect(ENCODER_FINE_DT_GPIO, GPIO.FALLING,
+                            #   callback=self.__FineDown, bouncetime=BOUNCE_TIME_ENCODER)
         # TODO: at this moment is not as stable as I expected, so it will be modified later.
     
     def run(self):
@@ -77,48 +79,59 @@ class RadioPanel(threading.Thread):
             if (not self.__queue.networktohardware.empty()):
                 radioFreq = self.__queue.networktohardware.get()
                 if radioFreq.Name == "com1actv":
-                    # print("should be com1Actv, ", radioFreq.Value)
-                    self.__com1Freq['actv'] = float(radioFreq.Value) / 100
+                    if radioFreq.Value / 100 != self.__com1Freq['actv']:
+                        self.__com1Freq['actv'] = radioFreq.Value / 100
+                        self.__toRefresh = True
                 elif radioFreq.Name == "com1stby":
-                    # print("should be com1Stby, ", radioFreq.Value)
-                    self.__com1Freq['stby'] = float(radioFreq.Value) / 100
-                elif radioFreq.Name == "com2actv":
-                    # print("should be com2Actv, ", radioFreq.Value)
-                    pass
-                elif radioFreq.Name == "com2stby":
-                    # print("should be com2Stby, ", radioFreq.Value)
-                    pass
+                    if radioFreq.Value / 100 != self.__com1Freq['stby']:
+                        self.__com1Freq['stby'] = radioFreq.Value / 100
+                        self.__toRefresh = True
 
-            if time.time() - self.__lastRefreshTime > LCD_REFRESH_INTERVAL:
-                # self.__textArray[0] = "ACTV: " + str(self.__com1Freq['actv'])
-                # self.__textArray[1] = "STBY: " + str(self.__com1Freq['stby'])
-                # self.__panelLcd.Write(self.__textArray, len(self.__textArray))
-                self.__panelLcd.WriteString("ACTV: " + str(self.__com1Freq['actv']) + "\n\r" 
-                    + "STBY: " + str(self.__com1Freq['stby']))
+            if time.time() - self.__lastRefreshTime > LCD_REFRESH_INTERVAL and self.__toRefresh:
+                self.__toRefresh = False
+                self.__panelLcd.WriteString("ACTV: " + str(self.__com1Freq['actv'])
+                                            + "\n\r" + "STBY: " + str(self.__com1Freq['stby']))
                 self.__lastRefreshTime = time.time()
 
     def __SwitchFreq(self, gpioPin):
-        
+        # swap the stby and actv
+        self.__queue.hardwaretonetwork.put(["com1actv", self.__com1Freq['stby']])
+        self.__queue.hardwaretonetwork.put(["com1stby", self.__com1Freq['actv']])
 
-    def __CoarseUp(self, gpioPin):
-        self.__coarseClk += 1
-        if GPIO.input(ENCODER_COARSE_DT_GPIO) == False and self.__coarseDt == 1:
-            print("coarseup")
-        self.__coarseClk = 0
-        self.__coarseDt = 0
+    def __CoarseChange(self, gpioPin):
+        if GPIO.input(ENCODER_COARSE_DT_GPIO) == False:
+            self.__GetNextCoarse(True)
+        else:
+            self.__GetNextCoarse(False)
 
-
-    def __CoarseDown(self, gpioPin):
-        self.__coarseDt += 1
-        if GPIO.input(ENCODER_COARSE_CLK_GPIO) == False and self.__coarseClk == 1:
-            print("coarsedown")
-        self.__coarseDt = 0
-        self.__coarseClk = 0
-
-    def __FineUp(self, gpioPin):
+    def __FineChange(self, gpioPin):
         if GPIO.input(ENCODER_FINE_DT_GPIO) == False:
-            print("fineup")
+            self.__GetNextFine(True)
+        else:
+            self.__GetNextFine(False)
 
-    def __FineDown(self, gpioPin):
-        if GPIO.input(ENCODER_FINE_CLK_GPIO) == False:
-            print("finedown")
+    def __GetNextCoarse(self, plus):
+        newFreq = 0
+        if plus:
+            newFreq = self.__com1Freq['stby'] + 1
+            if newFreq > 136.99:
+                newFreq = 118.0 + (newFreq * 100 % 100 / 100)
+        else:
+            newFreq = self.__com1Freq['stby'] - 1
+            if newFreq < 118.00:
+                newFreq = 136.00 + (newFreq * 100 % 100 / 100)
+        self.__queue.hardwaretonetwork.put(["com1stby", newFreq])
+    
+    # TODO: add 8.33Khz supporting
+    def __GetNextFine(self, plus):
+        newFreq = 0
+        if plus:
+            newFreq = self.__com1Freq['stby'] + 0.01
+            if newFreq * 100 % 100 > 99:
+                newFreq = divmod(newFreq, 1)[1]
+        else:
+            newFreq = self.__com1Freq['stby'] - 0.01
+            if newFreq * 100 % 100 < 0:
+                newFreq = divmod(newFreq, 1)[1] + 0.99
+        self.__queue.hardwaretonetwork.put(
+            ["com1stby", newFreq])
