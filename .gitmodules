@@ -1,3 +1,0 @@
-[submodule "hardware/Adafruit_CircuitPython_CharLCD"]
-	path = hardware/Adafruit_CircuitPython_CharLCD
-	url = https://github.com/adafruit/Adafruit_CircuitPython_CharLCD.git
