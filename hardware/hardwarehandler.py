@@ -1,15 +1,19 @@
+import collections
 import threading
 import time
 import RPi.GPIO as GPIO  # pylint: disable=import-error
+from hardware.charlcd import characterlcd
 
-BUTTON_GPIO = 18
+BUTTON_GPIO             = 18
 ENCODER_COARSE_CLK_GPIO = 12
-ENCODER_COARSE_DT_GPIO = 16
-ENCODER_FINE_CLK_GPIO = 20
-ENCODER_FINE_DT_GPIO = 21
+ENCODER_COARSE_DT_GPIO  = 16
+ENCODER_FINE_CLK_GPIO   = 20
+ENCODER_FINE_DT_GPIO    = 21
 
-BOUNCE_TIME_BUTTON = 200
-BOUNCE_TIME_ENCODER = 100
+BOUNCE_TIME_BUTTON      = 200
+BOUNCE_TIME_ENCODER     = 100
+
+LCD_REFRESH_INTERVAL    = 0.5
 
 """
 Class to control the radio panel
@@ -20,11 +24,19 @@ class RadioPanel(threading.Thread):
         threading.Thread.__init__(self)
         self.__queue = queue
         self.__name = name
+        self.__com1Freq = {'actv' : 0.0, 'stby' : 0.0}
+        self.__textArray = list()
+        self.__textArray.append("")
+        self.__textArray.append("")
+
+        self.__lastRefreshTime = time.time()
 
         self.__coarseClk = 0
         self.__coarseDt = 0
         self.__fineClk = 0
         self.__fineDt = 0
+
+        self.__panelLcd = characterlcd.CharacterLCD('PCF8574', 1, 0x27, 16, 2)
 
         """
         setting up GPIO
@@ -62,21 +74,31 @@ class RadioPanel(threading.Thread):
     
     def run(self):
         while True:
-            # if (not self.__queue.networktohardware.empty()):
-            #     radioFreq = self.__queue.networktohardware.get()
-            #     if radioFreq.Name == "com1actv":
-            #         print("should be com1Actv, ", radioFreq.Value)
-            #     elif radioFreq.Name == "com1stby":
-            #         print("should be com1Stby, ", radioFreq.Value)
-            #     elif radioFreq.Name == "com2actv":
-            #         print("should be com2Actv, ", radioFreq.Value)
-            #     elif radioFreq.Name == "com2stby":
-            #         print("should be com2Stby, ", radioFreq.Value)
-            pass
+            if (not self.__queue.networktohardware.empty()):
+                radioFreq = self.__queue.networktohardware.get()
+                if radioFreq.Name == "com1actv":
+                    # print("should be com1Actv, ", radioFreq.Value)
+                    self.__com1Freq['actv'] = float(radioFreq.Value) / 100
+                elif radioFreq.Name == "com1stby":
+                    # print("should be com1Stby, ", radioFreq.Value)
+                    self.__com1Freq['stby'] = float(radioFreq.Value) / 100
+                elif radioFreq.Name == "com2actv":
+                    # print("should be com2Actv, ", radioFreq.Value)
+                    pass
+                elif radioFreq.Name == "com2stby":
+                    # print("should be com2Stby, ", radioFreq.Value)
+                    pass
 
-    @staticmethod
-    def __SwitchFreq(gpioPin):
-        print("switch freq")
+            if time.time() - self.__lastRefreshTime > LCD_REFRESH_INTERVAL:
+                # self.__textArray[0] = "ACTV: " + str(self.__com1Freq['actv'])
+                # self.__textArray[1] = "STBY: " + str(self.__com1Freq['stby'])
+                # self.__panelLcd.Write(self.__textArray, len(self.__textArray))
+                self.__panelLcd.WriteString("ACTV: " + str(self.__com1Freq['actv']) + "\n\r" 
+                    + "STBY: " + str(self.__com1Freq['stby']))
+                self.__lastRefreshTime = time.time()
+
+    def __SwitchFreq(self, gpioPin):
+        
 
     def __CoarseUp(self, gpioPin):
         self.__coarseClk += 1
