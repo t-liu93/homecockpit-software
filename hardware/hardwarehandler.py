@@ -11,7 +11,7 @@ ENCODER_FINE_CLK_GPIO   = 20
 ENCODER_FINE_DT_GPIO    = 21
 
 BOUNCE_TIME_BUTTON      = 200
-BOUNCE_TIME_ENCODER     = 150
+BOUNCE_TIME_ENCODER     = 50
 
 LCD_REFRESH_INTERVAL    = 0.2
 
@@ -33,11 +33,6 @@ class RadioPanel(threading.Thread):
 
         self.__lastRefreshTime = time.time()
 
-        self.__coarseClk = 0
-        self.__coarseDt = 0
-        self.__fineClk = 0
-        self.__fineDt = 0
-
         self.__panelLcd = characterlcd.CharacterLCD('PCF8574', 1, 0x27, 16, 2)
 
         """
@@ -50,10 +45,15 @@ class RadioPanel(threading.Thread):
         Encoder2 connect to GPIO20 and GPIO21
         """
         GPIO.setup(BUTTON_GPIO, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.setup(ENCODER_COARSE_CLK_GPIO, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.setup(ENCODER_COARSE_DT_GPIO, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.setup(ENCODER_FINE_CLK_GPIO, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.setup(ENCODER_FINE_DT_GPIO, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.setup(ENCODER_COARSE_CLK_GPIO, GPIO.IN)
+        GPIO.setup(ENCODER_COARSE_DT_GPIO, GPIO.IN)
+        GPIO.setup(ENCODER_FINE_CLK_GPIO, GPIO.IN)
+        GPIO.setup(ENCODER_FINE_DT_GPIO, GPIO.IN)
+
+        self.__coarseCLKCounter = 0
+        self.__coarseDTCounter = 0
+        self.__fineCLKCounter = 0
+        self.__fineDTCounter = 0
 
         """
         Event detection when thread starts
@@ -65,10 +65,13 @@ class RadioPanel(threading.Thread):
         Anti-clockwise: clk -> dt
         """
         GPIO.add_event_detect(ENCODER_COARSE_CLK_GPIO, GPIO.FALLING,
-                              callback=self.__CoarseChange, bouncetime=BOUNCE_TIME_ENCODER)
+                              callback=self.__CoarseCLKChange, bouncetime=BOUNCE_TIME_ENCODER)
+        GPIO.add_event_detect(ENCODER_COARSE_DT_GPIO, GPIO.FALLING,
+                              callback=self.__CoarseDTChange, bouncetime=BOUNCE_TIME_ENCODER)
         GPIO.add_event_detect(ENCODER_FINE_CLK_GPIO, GPIO.FALLING,
-                              callback=self.__FineChange, bouncetime=BOUNCE_TIME_ENCODER)
-        # TODO: at this moment is not as stable as I expected, so it will be modified later.
+                              callback=self.__FineCLKChange, bouncetime=BOUNCE_TIME_ENCODER)
+        GPIO.add_event_detect(ENCODER_FINE_DT_GPIO, GPIO.FALLING,
+                              callback=self.__FineDTChange, bouncetime=BOUNCE_TIME_ENCODER)
     
     def run(self):
         while True:
@@ -95,16 +98,31 @@ class RadioPanel(threading.Thread):
     def __SwitchFreq(self, gpioPin):
         self.__queue.hardwaretonetwork.put("sim/radios/com1_standy_flip")
 
-    def __CoarseChange(self, gpioPin):
-        if GPIO.input(ENCODER_COARSE_DT_GPIO) == False:
+    def __CoarseCLKChange(self, gpioPin):
+        self.__coarseCLKCounter += 1
+        if self.__coarseDTCounter > 0:
             self.__queue.hardwaretonetwork.put("sim/radios/stby_com1_coarse_up")
-        else:
-            self.__queue.hardwaretonetwork.put("sim/radios/stby_com1_coarse_down")
+            self.__coarseCLKCounter = 0
+            self.__coarseDTCounter = 0
 
-    def __FineChange(self, gpioPin):
-        if GPIO.input(ENCODER_FINE_DT_GPIO) == False:
-            self.__queue.hardwaretonetwork.put(
-                "sim/radios/stby_com1_fine_up_833")
-        else:
-            self.__queue.hardwaretonetwork.put(
-                "sim/radios/stby_com1_fine_down_833")
+    def __FineCLKChange(self, gpioPin):
+        self.__fineCLKCounter += 1
+        if self.__fineDTCounter > 0:
+            self.__queue.hardwaretonetwork.put("sim/radios/stby_com1_fine_up_833")
+            self.__fineCLKCounter = 0
+            self.__fineDTCounter = 0
+
+    def __CoarseDTChange(self, gpioPin):
+        self.__coarseDTCounter += 1
+        if self.__coarseCLKCounter > 0:
+            self.__queue.hardwaretonetwork.put("sim/radios/stby_com1_coarse_down")
+            self.__coarseCLKCounter = 0
+            self.__coarseDTCounter = 0
+
+
+    def __FineDTChange(self, gpioPin):
+        self.__fineDTCounter += 1
+        if self.__fineCLKCounter > 0:
+            self.__queue.hardwaretonetwork.put("sim/radios/stby_com1_fine_down_833")
+            self.__fineCLKCounter = 0
+            self.__fineDTCounter = 0
