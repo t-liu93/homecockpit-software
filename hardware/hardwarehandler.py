@@ -66,12 +66,8 @@ class RadioPanel(threading.Thread):
         """
         GPIO.add_event_detect(ENCODER_COARSE_CLK_GPIO, GPIO.FALLING,
                               callback=self.__CoarseChange, bouncetime=BOUNCE_TIME_ENCODER)
-        # GPIO.add_event_detect(ENCODER_COARSE_DT_GPIO, GPIO.FALLING,
-                            #   callback=self.__CoarseDown, bouncetime=BOUNCE_TIME_ENCODER)
         GPIO.add_event_detect(ENCODER_FINE_CLK_GPIO, GPIO.FALLING,
                               callback=self.__FineChange, bouncetime=BOUNCE_TIME_ENCODER)
-        # GPIO.add_event_detect(ENCODER_FINE_DT_GPIO, GPIO.FALLING,
-                            #   callback=self.__FineDown, bouncetime=BOUNCE_TIME_ENCODER)
         # TODO: at this moment is not as stable as I expected, so it will be modified later.
     
     def run(self):
@@ -89,49 +85,26 @@ class RadioPanel(threading.Thread):
 
             if time.time() - self.__lastRefreshTime > LCD_REFRESH_INTERVAL and self.__toRefresh:
                 self.__toRefresh = False
-                self.__panelLcd.WriteString("ACTV: " + str(self.__com1Freq['actv'])
-                                            + "\n\r" + "STBY: " + str(self.__com1Freq['stby']))
+                self.__panelLcd.WriteString("ACTV: " + "{:5.2f}".format(self.__com1Freq['actv']) + "MHz"
+                                            + "\n\r" + "STBY: " + "{:5.2f}".format(self.__com1Freq['stby']) + "MHz")
                 self.__lastRefreshTime = time.time()
 
+    """
+    swap freq using x-plane internal flip function of com1
+    """
     def __SwitchFreq(self, gpioPin):
-        # swap the stby and actv
-        self.__queue.hardwaretonetwork.put(["com1actv", self.__com1Freq['stby']])
-        self.__queue.hardwaretonetwork.put(["com1stby", self.__com1Freq['actv']])
+        self.__queue.hardwaretonetwork.put("sim/radios/com1_standy_flip")
 
     def __CoarseChange(self, gpioPin):
         if GPIO.input(ENCODER_COARSE_DT_GPIO) == False:
-            self.__GetNextCoarse(True)
+            self.__queue.hardwaretonetwork.put("sim/radios/stby_com1_coarse_up")
         else:
-            self.__GetNextCoarse(False)
+            self.__queue.hardwaretonetwork.put("sim/radios/stby_com1_coarse_down")
 
     def __FineChange(self, gpioPin):
         if GPIO.input(ENCODER_FINE_DT_GPIO) == False:
-            self.__GetNextFine(True)
+            self.__queue.hardwaretonetwork.put(
+                "sim/radios/stby_com1_fine_up_833")
         else:
-            self.__GetNextFine(False)
-
-    def __GetNextCoarse(self, plus):
-        newFreq = 0
-        if plus:
-            newFreq = self.__com1Freq['stby'] + 1
-            if newFreq > 136.99:
-                newFreq = 118.0 + (newFreq * 100 % 100 / 100)
-        else:
-            newFreq = self.__com1Freq['stby'] - 1
-            if newFreq < 118.00:
-                newFreq = 136.00 + (newFreq * 100 % 100 / 100)
-        self.__queue.hardwaretonetwork.put(["com1stby", newFreq])
-    
-    # TODO: add 8.33Khz supporting
-    def __GetNextFine(self, plus):
-        newFreq = 0
-        if plus:
-            newFreq = self.__com1Freq['stby'] + 0.01
-            if newFreq * 100 % 100 > 99:
-                newFreq = divmod(newFreq, 1)[1]
-        else:
-            newFreq = self.__com1Freq['stby'] - 0.01
-            if newFreq * 100 % 100 < 0:
-                newFreq = divmod(newFreq, 1)[1] + 0.99
-        self.__queue.hardwaretonetwork.put(
-            ["com1stby", newFreq])
+            self.__queue.hardwaretonetwork.put(
+                "sim/radios/stby_com1_fine_down_833")

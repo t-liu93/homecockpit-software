@@ -81,27 +81,22 @@ class DataHandler(threading.Thread):
             self.__PutInQueue(self.__com2Stby)
 
     def Encode(self, data):
-        if data[0] == "com1actv":
-            header = "DREF".encode()
-            padding = "+".encode()
-            value = data[1] * 100
-            refName = "sim/cockpit/radios/com1_freq_hz"
-            last = refName + ("\0" * (500 - len(refName)))
-            b = struct.pack("=4scf500s", header, padding, value, last.encode())
-        elif data[0] == "com1stby":
-            header = "DREF".encode()
-            padding = "+".encode()
-            value = data[1] * 100
-            print(value)
-            refName = "sim/cockpit/radios/com1_stdby_freq_hz"
-            last = refName.encode()
-            last = refName + ("\0" * (500 - len(refName)))
-            b = struct.pack("=4scf500s", header, padding,
-                            value, last.encode())
-
-        return b
+        if "sim/" in data:
+            return self.__FlexiblePacking("CMND", data)
+        
+        return "\0".encode()
             
-            
+    
+    """
+    flexible packing in format <HEADER><PADDING><REMAINING>
+    <REMAINING> in this case is usually a command
+    """
+    def __FlexiblePacking(self, header, remaining):
+        headerLength = len(header)
+        padding = "\0".encode()
+        remainingLength = len(remaining)
+        formatStr = "=" + str(headerLength) + "sc" + str(remainingLength) + "s"
+        return struct.pack(formatStr, header.encode(), padding, remaining.encode())
     
     def __RemoveZeros(self, dataRemaining):
         i = 0
