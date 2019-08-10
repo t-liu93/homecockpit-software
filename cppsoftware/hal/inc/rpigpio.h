@@ -18,6 +18,13 @@
 
 using gpioreg_t = uint32_t;         // each gpio address is 32 bit wide
 
+enum gpio_status
+{
+    LOW = 0,
+    HIGH
+};
+using gpio_t = gpio_status;
+
 class RpiGPIOMapping
 {
 public:
@@ -48,7 +55,7 @@ public:
     void SetInput(uint32_t GPIOPin);
     void SetOutput(uint32_t GPIOPin);
 
-    uint32_t ReadGPIO(uint32_t GPIOPin);
+    gpio_t ReadGPIO(uint32_t GPIOPin);
 
 private:
     static RpiGPIOMapping*          m_pInstance;

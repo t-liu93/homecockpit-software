@@ -45,23 +45,24 @@ RpiGPIOMapping::~RpiGPIOMapping()
 void RpiGPIOMapping::SetInput(uint32_t GPIOPin)
 {
     *GetGPIOFunctionSelector(GPIOPinToFunctionSelectorIndex(GPIOPin)) 
-        &= ~(0b111 << GPIOPinBitLocation(GPIOPin));
+        &= ~(7 << GPIOPinBitLocation(GPIOPin));
 }
 
 void RpiGPIOMapping::SetOutput(uint32_t GPIOPin)
 {
     *GetGPIOFunctionSelector(GPIOPinToFunctionSelectorIndex(GPIOPin)) 
-        |= (0b001 << GPIOPinBitLocation(GPIOPin));
+        |= (1 << GPIOPinBitLocation(GPIOPin));
 }
 
-uint32_t RpiGPIOMapping::ReadGPIO(uint32_t GPIOPin)
+gpio_t RpiGPIOMapping::ReadGPIO(uint32_t GPIOPin)
 {
+
     if (GPIOPin <= 31)
     {
-        return (m_pGPIOBase[13] &= (1 << GPIOPin));
+        return ((m_pGPIOBase[13] & (1 << GPIOPin)) > 0)? HIGH : LOW;
     }
     else
     {
-        return (m_pGPIOBase[14] &= (1 << GPIOPin - 32));
+        return ((m_pGPIOBase[14] & (1 << GPIOPin - 32)) > 0)? HIGH : LOW;
     }
 }

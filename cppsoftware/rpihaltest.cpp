@@ -6,6 +6,7 @@
 int main(int argc, char** argv)
 {
     uint32_t buttonGPIO = 18;
+    RpiGPIOMapping::GetInstance()->SetInput(buttonGPIO);
     while (true)
     {
         std::cout << RpiGPIOMapping::GetInstance()->ReadGPIO(buttonGPIO) << std::endl;
