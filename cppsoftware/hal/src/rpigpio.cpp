@@ -1,31 +1,67 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <stdio.h>
 #include <iostream>
 #include "rpigpio.h"
 
-RpiHAL::RpiHAL()
+RpiGPIOMapping* RpiGPIOMapping::m_pInstance = nullptr;
+
+RpiGPIOMapping* RpiGPIOMapping::GetInstance()
 {
-    m_periphal.mem_fd = open("/dev/mem", O_RDWR | O_SYNC);
-    if (m_periphal.mem_fd < 0)
+    if (!m_pInstance)
+    {
+        m_pInstance = new RpiGPIOMapping();
+    }
+
+    return m_pInstance;
+}
+
+RpiGPIOMapping::RpiGPIOMapping()
+{
+    m_memFd = open("/dev/mem", O_RDWR | O_SYNC);
+    if (m_memFd < 0)
     {
         std::cerr << "/dev/mem open failed.. exiting" << std::endl;
         exit(EXIT_FAILURE);
     }
 
-    m_periphal.pAddr = GPIO_BASE;
-    m_periphal.pMap = mmap(NULL, BLOCK_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, m_periphal.mem_fd, m_periphal.pAddr);
+    m_pGPIOBase = (gpioreg_t*) mmap(NULL, BLOCK_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, m_memFd, GPIO_BASE);
 
-    if (m_periphal.pMap == MAP_FAILED)
+    if (m_pGPIOBase == MAP_FAILED)
     {
         std::cerr << "mapping failed" << std::endl;
         exit(EXIT_FAILURE);
     }
-    close(m_periphal.mem_fd);
+    close(m_memFd);
 }
 
-RpiHAL::~RpiHAL()
+RpiGPIOMapping::~RpiGPIOMapping()
 {
-    // unmap
-    munmap(m_periphal.pMap, BLOCK_SIZE);
+    std::clog << "Unmapping." << std::endl;
+    munmap((void*)m_pGPIOBase, BLOCK_SIZE);
+}
+
+void RpiGPIOMapping::SetInput(uint32_t GPIOPin)
+{
+    *GetGPIOFunctionSelector(GPIOPinToFunctionSelectorIndex(GPIOPin)) 
+        &= ~(0b111 << GPIOPinBitLocation(GPIOPin));
+}
+
+void RpiGPIOMapping::SetOutput(uint32_t GPIOPin)
+{
+    *GetGPIOFunctionSelector(GPIOPinToFunctionSelectorIndex(GPIOPin)) 
+        |= (0b001 << GPIOPinBitLocation(GPIOPin));
+}
+
+uint32_t RpiGPIOMapping::ReadGPIO(uint32_t GPIOPin)
+{
+    if (GPIOPin <= 31)
+    {
+        return (m_pGPIOBase[13] &= (1 << GPIOPin));
+    }
+    else
+    {
+        return (m_pGPIOBase[14] &= (1 << GPIOPin - 32));
+    }
 }
