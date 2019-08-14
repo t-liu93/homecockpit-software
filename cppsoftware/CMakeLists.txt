@@ -12,9 +12,9 @@ if(COMPILE_PI)
     SET(CMAKE_FIND_ROOT_PATH arm-linux-gnueabihf)
 endif()
 
-include_directories(hal/inc)
+include_directories(rpihw/inc)
 
-add_subdirectory(hal)
+add_subdirectory(rpihw)
 
 set(SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/rpihaltest.cpp)
 
