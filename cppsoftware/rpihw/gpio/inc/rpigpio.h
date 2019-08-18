@@ -3,7 +3,7 @@
 /**
  * Defines for raspberry pi 3b+ GPIO address
  */
-#define PERI_BASE                   0x3F000000
+#define PERI_BASE                   (0x3F000000)
 #define GPIO_BASE                   (PERI_BASE + 0x200000)
 #define BLOCK_SIZE 		            (4*1024)
 
